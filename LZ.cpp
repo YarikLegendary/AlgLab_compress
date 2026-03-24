@@ -2,7 +2,11 @@
 #include <cstdint>
 const unsigned char END_MARKER = '$';
 
-vector <uint8_t> encodeLZ77(const vector <unsigned char>& data, int MAX_WINDOW_SIZE = 255) {
+const int MAX_WINDOW_SIZE = 255*100;
+
+const int MAX_DICT_SIZE = 1024*128;
+
+vector <uint8_t> encodeLZ77(const vector <unsigned char>& data) {
 
 	int data_size = data.size();
 	vector <uint8_t> result;
@@ -80,7 +84,7 @@ vector <unsigned char> decodeLZ77(const vector <uint8_t>& data) {
 	return result;
 }
 
-vector<uint8_t> encodeLZSS(const vector<uint8_t>& data, int MAX_WINDOW_SIZE = 255) {
+vector<uint8_t> encodeLZSS(const vector<uint8_t>& data) {
 
 	const int MIN_LEN = 2;
 
@@ -112,10 +116,26 @@ vector<uint8_t> encodeLZSS(const vector<uint8_t>& data, int MAX_WINDOW_SIZE = 25
 			}
 		}
 
-		if (best_length >= MIN_LEN) {
+		if (best_length >= MIN_LEN && best_offset > 0) {
+
 			result.push_back(1); // Флаг если было повторение
-			result.push_back(best_offset);
-			result.push_back(best_length);
+
+			// Это для маленького окна
+			
+			//result.push_back(best_offset);
+			//result.push_back(best_length);
+
+			////////////////////
+			// 
+			// Это для большого окна
+
+			uint16_t offset16 = static_cast<uint16_t>(best_offset);
+			result.push_back(offset16 & 0xFF);        // младший байт
+			result.push_back((offset16 >> 8) & 0xFF); // старший байт
+			result.push_back(static_cast<uint8_t>(best_length));
+
+			//////////////
+
 			pos += best_length;
 		}
 		else {
@@ -131,9 +151,9 @@ vector <unsigned char> decodeLZSS(const vector <uint8_t>& data) {
 
 	vector <unsigned char> result;
 
-	for (int pos = 0; pos < data.size();) {
+	for (size_t pos = 0; pos < data.size();) {
 		
-		uint8_t flag = data[pos++];
+		uint8_t flag = data[pos++]; 
 
 		if (flag == 0) {
 			if (pos >= data.size()) break;
@@ -141,13 +161,28 @@ vector <unsigned char> decodeLZSS(const vector <uint8_t>& data) {
 		}
 		else {
 
-			if (pos + 1 >= data.size()) break;
+			///// ДЛЯ МАЛЕНЬКОГО РАЗМЕРА ОКНА
 
-			uint8_t offset = data[pos++];
+			//if (pos + 1 >= data.size()) break;
+
+			//uint8_t offset = data[pos++];
+			//uint8_t length = data[pos++];
+
+			///////////////////////////////
+
+			///// ДЛЯ БОЛЬШОГО РАЗМЕРА ОКНА
+
+			if (pos + 2 >= data.size()) break;
+			uint16_t offset = data[pos] | (data[pos + 1] << 8);
+			pos += 2;
+
+			if (pos >= data.size()) break;
 			uint8_t length = data[pos++];
 
-			int start = result.size() - offset;
-			for (int i = 0; i < length; i++) {
+			////////////////////////////////
+
+			size_t start = result.size() - offset;
+			for (size_t i = 0; i < length; i++) {
 				result.push_back(result[start + i]);
 			}
 		}
@@ -174,7 +209,11 @@ vector <info> encodeLZ78(const vector <unsigned char>& data) {
 		else {
 
 			result.push_back({ dictionary[current], s });
-			dictionary[new_str] = next_index++;
+
+			if (next_index < MAX_DICT_SIZE) { // Ограничение на размер словаря
+				dictionary[new_str] = next_index++;
+			}
+
 			current = "";
 		}
 	}
@@ -199,17 +238,84 @@ vector <unsigned char> decodeLZ78(const vector <info>& data) {
 		
 		if (p.index == 0) {
 
-			str = string(1, p.next);
+			str = string(1, static_cast<char>(p.next));
 		}
-		else str = dictionary[p.index] + (char)p.next;
+		else str = dictionary[p.index] + static_cast<char>(p.next);
 
-		for (unsigned char s : str) {
-			result.push_back(s);
-		}
-		if (p.next != 0) {
+		result.insert(result.end(), str.begin(), str.end());
+
+		if (p.next != 0 && dictionary.size() < MAX_DICT_SIZE) { // ограничение на словарь
 			dictionary.push_back(str);
 		}
 	}
 
+	return result;
+}
+
+vector<int> encodeLZW(const vector<unsigned char>& data) {
+
+	map<string, int> dictionary;
+	vector<int> result;
+
+	// Инициализация: все символы 0-255
+	for (int i = 0; i < 256; i++) {
+		dictionary[string(1, i)] = i;
+	}
+
+	int next_index = 256;
+	string current = "";
+
+	for (unsigned char c : data) {
+		string new_str = current + (char)c;
+
+		if (dictionary.count(new_str)) {
+			current = new_str;
+		}
+		else {
+			result.push_back(dictionary[current]);
+
+			if (next_index < MAX_DICT_SIZE) { // ограничение на словарь
+				dictionary[new_str] = next_index++;
+			}
+			current = string(1, c);
+		}
+	}
+
+	if (!current.empty()) {
+		result.push_back(dictionary[current]);
+	}
+
+	return result;
+}
+
+vector<unsigned char> decodeLZW(const vector<int>& codes) {
+	vector<string> dictionary;
+	vector<unsigned char> result;
+
+	// Инициализация: все символы 0-255
+	for (int i = 0; i < 256; i++) {
+		dictionary.push_back(string(1, i));
+	}
+
+	string prev = dictionary[codes[0]];
+	for (unsigned char c : prev) result.push_back(c);
+
+	for (size_t i = 1; i < codes.size(); i++) {
+		int code = codes[i];
+		string entry;
+
+		if (code < dictionary.size()) {
+			entry = dictionary[code];
+		}
+		else {
+			entry = prev + prev[0];  // особый случай
+		}
+
+		for (unsigned char c : entry) result.push_back(c);
+		if (dictionary.size() < MAX_DICT_SIZE) { // ограничение на словарь
+			dictionary.push_back(prev + entry[0]);
+		}
+		prev = entry;
+	}
 	return result;
 }

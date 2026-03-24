@@ -42,4 +42,6 @@ void printHEX(const vector<unsigned char>& data) {
 			<< (int)symbol << " ";
 	}
 	cout << dec << endl;
+
+
 }

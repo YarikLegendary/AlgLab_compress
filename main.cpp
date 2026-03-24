@@ -1,4 +1,6 @@
-﻿#include "funcs_img.h"
+﻿#define STB_IMAGE_IMPLEMENTATION
+#include "stb_image.h"
+#include "funcs_img.h"
 #include "funcs_text.h"
 #include "compress.h"
 #include "Huffman.h"
@@ -6,60 +8,60 @@
 #include "BWT.h"
 #include "LZ.h"
 
+void compressor1() {
+
+
+}
+
+int oimg() {
+
+	int width, height, channels;
+
+	string filename = "rgbimage.jpg";
+
+	unsigned char* imageData = stbi_load(filename.c_str(), &width, &height, &channels, 3);
+	if (width < 1 || height < 1) return 1 ;
+
+	if (!imageData) {
+		cout << "Ошибка загрузки файла " << filename << endl;
+		cout << "Причина: " << stbi_failure_reason() << endl;
+		return 1;
+	}
+	vector<unsigned char> image(imageData, imageData + width * height * 3);
+	stbi_image_free(imageData);
+}
+
 int main() {
 
 	setlocale(LC_ALL, "Ru");
+
+	ifstream f("Text.txt", ios::in);
+	if (!f.is_open()) {
+		cerr << "Error!"; return 1;
+	}
+	vector <unsigned char> data = readText(f);
+
+
+	cout << "\nData size: " << data.size() << " byte";
+
+	clock_t start = clock();
+
+	auto encoded = encodeLZSS(data);
 	
-	string text = "abc$";
+	clock_t end = clock();
 
-	cout << "Исходная строка: " << text;
+	cout << "\nAfter LZSS:" << encoded.size() << " byte" << endl;
 
-	vector<unsigned char> data(text.begin(), text.end());
+	auto decoded = decodeLZSS(encoded);
 
-	vector<unsigned char> encoded = naiveBWT(data);
+	cout << "Decodeed data size: " << decoded.size() << " byte" << endl;
 
-	vector<unsigned char> decoded = naiveiBWT(encoded);\
+	double k = (double)data.size() / (double)encoded.size();
+	cout << "\nCoef: " << setprecision(2) << k << endl;
+
+	double taken_time = double(end - start) / CLOCKS_PER_SEC;
+
+	cout << "\Encoded Time: " << taken_time << " sec" << endl;
 
 	return 0;
 }
-
-
-//////////////////////////////
-
-//cout << "Открыть .PNG/JPG - 1, Открыть .txt - 2 , Открыть .RAW - 3. Выберите опцию: ";
-//int option; cin >> option;
-
-//if (option == 1) {
-
-//	string filename1 = "TESTIMG4.png";
-//	cout << "\nЗагружаемое изображение: " << filename1 << endl;
-
-//	if (!processImage(filename1)) {
-//		cout << "\nКакие то-неплоадки :(\n";
-//		return 1;
-//	};
-//}
-//else if (option == 2) {
-//	string filename2 = "text.txt";
-//	cout << "\nЗагружаемый текст: " << filename2 << endl;
-
-//	if (!processText(filename2)) {
-//		cout << "\nКакие то-неплоадки :(\n";
-//		return 1;
-//	};
-//}
-//else if (option == 3) {
-
-//	string filename3 = "data.raw";
-//	cout << "\nЗагружаемый файл: " << filename3 << endl;
-
-//	printHEX(loadRaw(filename3));
-
-//	cout << "\nDecompress? (Да - 1, Нет - 2): ";
-//	int option; cin >> option;
-//	if (option == 1) {
-//		decodeRLE(loadRaw(filename3));
-//	}
-
-//}
-//else cout << "\nВыбрано неверное значение, повоторите попытку\n";

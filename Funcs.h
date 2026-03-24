@@ -8,6 +8,7 @@
 #include <map>
 #include <list>
 #include <algorithm>
+#include <ctime>
 using namespace std;
 
 void saveData(const vector<unsigned char>& data);

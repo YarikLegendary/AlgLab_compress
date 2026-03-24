@@ -1,4 +1,5 @@
 #include "BWT.h"
+const size_t BLOCK_SIZE = 256 * 2000;
 
 vector<unsigned char> naiveBWT(const vector<unsigned char>& data) {
 
@@ -6,7 +7,8 @@ vector<unsigned char> naiveBWT(const vector<unsigned char>& data) {
 
 	for (int i = 0; i < data.size(); i++) {
 
-		vector<unsigned char> row(data.size());
+		vector<unsigned char> row;
+		row.reserve(data.size());
 
 		row.insert(row.end(), data.begin() + i, data.end());
 		row.insert(row.end(), data.begin(), data.begin() + i);
@@ -67,25 +69,161 @@ vector<unsigned char> naiveiBWT(const vector<unsigned char>& data) {
 
 vector<unsigned char> BWT(const vector<unsigned char>& data) {
 
+	if (data.empty()) return data;
+
 	// Массив перестановок {0, 1, 2, 3 ... } условно
 	vector<int> shifts (data.size());
 
 	for (int i = 0; i < data.size(); i++) shifts[i] = i;
 
 	// Сортируем по СТРОКАМ (compareShifts) индксы в массиве shifts 
-
-	// ТУТ ПО ИДЕИ СОРТИРОВКА ПОДСЧЕТОМ ИЛИ КАК?
 	sort(shifts.begin(), shifts.end(),
 		[&](int a, int b) { return compareShifts(a, b, data); });
 
 	// Берем последние индексы переставленных строк
 	vector<unsigned char> result;
+	result.reserve(data.size());
+
 	for (int start : shifts) {
 		int lastIndex = (start + data.size() - 1) % data.size();
 		result.push_back(data[lastIndex]);
 	}
+
+	return result;
+}
+
+vector<unsigned char> iBWT(const vector<unsigned char>& last_column) {
+
+	if (last_column.empty()) return last_column;
+
+	int n = last_column.size();
+
+	vector<int> count(256, 0);
+	for (unsigned char c : last_column) {
+		count[c]++;
+	}
+
+	vector<int> start_pos(256, 0);
+	int sum = 0;
+	for (int i = 0; i < 256; i++) {
+		start_pos[i] = sum;
+		sum += count[i];
+	}
+
+	vector<int> next(n);
+	vector<int> current_pos = start_pos; 
+
+	for (int i = 0; i < n; i++) {
+		unsigned char c = last_column[i];
+		next[current_pos[c]++] = i;
+	}
+
+	int original_row = 0;
+	for (int i = 0; i < n; i++) {
+		if (last_column[i] == 0) { 
+			original_row = i;
+			break;
+		}
+	}
+	vector<unsigned char> result;
+	int current = original_row;
+
+	for (int i = 0; i < n; i++) {
+		current = next[current];
+		result.push_back(last_column[current]);
+	}
+
+	return result;
+}
+
+vector<unsigned char> blocksBWT(const vector<unsigned char>& data) {
+
+	size_t total_size = data.size();
+
+	vector<unsigned char> result;
+	
+	for (size_t offset = 0; offset < total_size; offset += BLOCK_SIZE) {
+
+		size_t block_size = min(BLOCK_SIZE, total_size - offset);
+
+		vector<unsigned char> block(data.begin() + offset, data.begin() + offset + block_size);
+
+		vector<unsigned char> processed_block = BWT(block);
+
+		result.insert(result.end(), processed_block.begin(), processed_block.end());
+
+	}
+
+	return result;
+}
+
+vector<unsigned char> blocksiBWT(const vector<unsigned char>& data) {
+
+	size_t total_size = data.size();
+
+	vector<unsigned char> result;
+
+	for (size_t offset = 0; offset < total_size; offset += BLOCK_SIZE) {
+
+		size_t block_size = min(BLOCK_SIZE, total_size - offset);
+
+		vector<unsigned char> block(data.begin() + offset, data.begin() + offset + block_size);
+
+		vector<unsigned char> processed_block = iBWT(block);
+
+		result.insert(result.end(), processed_block.begin(), processed_block.end());
+
+	}
+
 	return result;
 
+}
+
+vector<int32_t> buildSuffArray(const vector <unsigned char>& data) {
+
+	vector <int32_t> suff_array;
+
+	for (int i = 0; i < data.size() ; i++) {
+		suff_array.push_back(i);
+	}
+
+	sort(suff_array.begin(), suff_array.end(), [&](int a, int b) {return compareSuffs(a, b, data);});
+
+	return suff_array;
+}
+
+bool compareSuffs(int a, int b, const vector <unsigned char>& data) {
+
+	for (int i = 0;;i++) {
+
+		if (i + a >= data.size() && i + b >= data.size()) return false;
+
+		if (a + i >= data.size()) return true;
+		if (b + i >= data.size()) return false;
+
+		if (data[i + a] != data[i + b]) {
+			return data[i + a] < data[i + b];
+		}
+	}
+
+}
+
+vector<unsigned char> suffixArrayToBWT(const vector<int32_t>& suffix_array, const vector<unsigned char>& data) {
+
+	vector<unsigned char> last_column(data.size());
+
+	for (int i = 0; i < suffix_array.size(); i++) {
+
+		int start = suffix_array[i];
+
+		if (start == 0) {
+			last_column[i] = data[data.size() - 1];
+		}
+		else last_column[i] = data[start - 1];
+
+	}
+
+	return last_column;
 }
 
 bool compareShifts(int a, int b, const vector<unsigned char>& data) {
@@ -104,51 +242,6 @@ bool compareShifts(int a, int b, const vector<unsigned char>& data) {
 	}
 	return false;
 }
-
-vector<unsigned char> inverseBWT_counting_sort(const vector<unsigned char>& last_column) {
-	int n = last_column.size();
-
-	// Шаг 1: СОРТИРОВКА ПОДСЧЕТОМ
-	const int ALPHABET_SIZE = 256;
-	vector<int> count(ALPHABET_SIZE, 0);
-	vector<int> start_pos(ALPHABET_SIZE, 0);
-
-	// Подсчет частот
-	for (unsigned char c : last_column) {
-		count[c]++;
-	}
-
-	// Вычисление начальных позиций
-	int sum = 0;
-	for (int i = 0; i < ALPHABET_SIZE; i++) {
-		start_pos[i] = sum;
-		sum += count[i];
-	}
-
-	// Шаг 2: Построение массива перестановок next[]
-	vector<int> next(n);
-	vector<int> next_pos = start_pos; // копия
-
-	for (int i = 0; i < n; i++) {
-		unsigned char c = last_column[i];
-		next[next_pos[c]++] = i;
-	}
-
-	// Шаг 3: Поиск строки с оригиналом
-	// В реальном BWT нужно знать индекс оригинальной строки
-	// Для простоты начнем с первой строки
-	int row = 0;
-
-	// Шаг 4: Восстановление
-	vector<unsigned char> result;
-	for (int i = 0; i < n; i++) {
-		row = next[row];
-		result.push_back(last_column[row]);
-	}
-
-	return result;
-}
-
 
 void printMatrix(vector<vector<unsigned char>> matrix) {
 	for (const auto& row : matrix) {

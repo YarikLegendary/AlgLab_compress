@@ -46,13 +46,13 @@ vector <unsigned char> readText(ifstream& file) {
 		textData.push_back(sym);
 	}
 
-	cout << "\nДанные: ";
-	for (auto sym : textData) {
-		cout << sym;
-	}
-	cout << "\n";
+	//cout << "\nДанные: ";
+	//for (auto sym : textData) {
+	//	cout << sym;
+	//}
+	//cout << "\n";
 	
-	printHEX(textData);
+	//printHEX(textData);
 
 	return textData;
 }
