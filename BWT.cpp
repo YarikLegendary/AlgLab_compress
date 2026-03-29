@@ -1,5 +1,5 @@
 #include "BWT.h"
-const size_t BLOCK_SIZE = 256 * 2000;
+const size_t BLOCK_SIZE = 1024 * 128;
 
 vector<unsigned char> naiveBWT(const vector<unsigned char>& data) {
 
@@ -71,22 +71,26 @@ vector<unsigned char> BWT(const vector<unsigned char>& data) {
 
 	if (data.empty()) return data;
 
-	// Массив перестановок {0, 1, 2, 3 ... } условно
-	vector<int> shifts (data.size());
+	vector<unsigned char> extended(data.size() + 1);
+	copy(data.begin(), data.end(), extended.begin());
+	extended.back() = 0;
 
-	for (int i = 0; i < data.size(); i++) shifts[i] = i;
+	// Массив перестановок {0, 1, 2, 3 ... } условно
+	vector<int> shifts (extended.size());
+
+	for (int i = 0; i < extended.size(); i++) shifts[i] = i;
 
 	// Сортируем по СТРОКАМ (compareShifts) индксы в массиве shifts 
 	sort(shifts.begin(), shifts.end(),
-		[&](int a, int b) { return compareShifts(a, b, data); });
+		[&](int a, int b) { return compareShifts(a, b, extended); });
 
 	// Берем последние индексы переставленных строк
 	vector<unsigned char> result;
-	result.reserve(data.size());
+	result.reserve(extended.size());
 
 	for (int start : shifts) {
-		int lastIndex = (start + data.size() - 1) % data.size();
-		result.push_back(data[lastIndex]);
+		int lastIndex = (start + extended.size() - 1) % extended.size();
+		result.push_back(extended[lastIndex]);
 	}
 
 	return result;
@@ -132,6 +136,7 @@ vector<unsigned char> iBWT(const vector<unsigned char>& last_column) {
 		current = next[current];
 		result.push_back(last_column[current]);
 	}
+	result.pop_back();
 
 	return result;
 }
@@ -163,9 +168,11 @@ vector<unsigned char> blocksiBWT(const vector<unsigned char>& data) {
 
 	vector<unsigned char> result;
 
-	for (size_t offset = 0; offset < total_size; offset += BLOCK_SIZE) {
+	size_t encoded_block_size = BLOCK_SIZE + 1;
 
-		size_t block_size = min(BLOCK_SIZE, total_size - offset);
+	for (size_t offset = 0; offset < total_size; offset += encoded_block_size) {
+
+		size_t block_size = min(encoded_block_size, total_size - offset);
 
 		vector<unsigned char> block(data.begin() + offset, data.begin() + offset + block_size);
 
@@ -176,7 +183,6 @@ vector<unsigned char> blocksiBWT(const vector<unsigned char>& data) {
 	}
 
 	return result;
-
 }
 
 vector<int32_t> buildSuffArray(const vector <unsigned char>& data) {

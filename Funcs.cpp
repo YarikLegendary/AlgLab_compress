@@ -1,8 +1,8 @@
 #include "funcs.h"
 
-void saveData(const vector<unsigned char>& data) {
+void saveData(const vector<unsigned char>& data, string filename) {
 
-	ofstream MyData("data.raw", std::ios::binary | std::ios::trunc);
+	ofstream MyData(filename, std::ios::binary | std::ios::trunc);
 	if (MyData.is_open()) {
 		MyData.write(reinterpret_cast<const char*>(data.data()), data.size());
 		if (MyData.good()) {
@@ -44,4 +44,15 @@ void printHEX(const vector<unsigned char>& data) {
 	cout << dec << endl;
 
 
+}
+
+vector <unsigned char> readText(ifstream& file) {
+
+	vector <unsigned char> textData;
+	char sym;
+
+	while (file.get(sym)) {
+		textData.push_back(sym);
+	}
+	return textData;
 }

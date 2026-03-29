@@ -1,11 +1,14 @@
 #pragma once
 #include "funcs.h"
 
-vector <unsigned char> encodeRLE(vector <unsigned char>& data);
+vector <unsigned char> encodeRLE(const vector <unsigned char>& data);
 vector <unsigned char> decodeRLE(const vector<unsigned char>& data);
 
-vector<int> MTF(const vector<unsigned char>& data);
-vector<unsigned char> decodeMTF(const vector<int>& data);
+vector<unsigned char> MTF(const vector<unsigned char>& data);
+vector<unsigned char> decodeMTF(const vector<unsigned char>& data);
+
+vector <unsigned char> encodeRLERGB(const vector <unsigned char>& data);
+vector <unsigned char> decodeRLERGB(const vector<unsigned char>& data);
 
 template<typename T>
 double entropy(const vector<T>& data, int qtBlocks) {
@@ -43,6 +46,3 @@ double entropy(const vector<T>& data, int qtBlocks) {
 
 	return Entropy;
 }
-
-vector <unsigned char> encodeRLERGB(vector <unsigned char>& data);
-vector <unsigned char> decodeRLERGB(const vector<unsigned char>& data);

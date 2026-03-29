@@ -98,7 +98,9 @@ vector <unsigned char> encodeHuf(const vector<unsigned char>& data) {
 
 	vector <unsigned char> result;
 
-	result.push_back(freqs.size());
+	uint16_t numSymbols = static_cast<uint16_t>(freqs.size());
+	result.push_back((numSymbols >> 8) & 0xFF);
+	result.push_back(numSymbols & 0xFF);
 
 	for (auto& pair : freqs) {
 		result.push_back(pair.first);  // символ
@@ -144,11 +146,11 @@ vector <unsigned char> encodeHuf(const vector<unsigned char>& data) {
 
 vector <unsigned char> decodeHuf(const vector<unsigned char>& compressed) {
 
-
 	int pos = 0;
 
 	// Читаем количество символов
-	int numSymbols = compressed[pos++];
+	int numSymbols = (compressed[pos] << 8) | compressed[pos + 1];
+	pos += 2;
 
 	// Восстанавливаем частоты
 	map<unsigned char, int> freqs;
@@ -189,6 +191,9 @@ vector <unsigned char> decodeHuf(const vector<unsigned char>& compressed) {
         if (count == 8) { count = 0; i++; }
 
     }
+
+	delete root;
+
 	return result;
 }
 

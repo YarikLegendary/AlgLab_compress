@@ -11,6 +11,7 @@
 #include <ctime>
 using namespace std;
 
-void saveData(const vector<unsigned char>& data);
+void saveData(const vector<unsigned char>& data, string filename);
 vector<unsigned char> loadRaw(const string& filename);
 void printHEX(const vector<unsigned char>& data);
+vector <unsigned char> readText(ifstream& file);

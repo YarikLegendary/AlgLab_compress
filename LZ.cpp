@@ -2,9 +2,9 @@
 #include <cstdint>
 const unsigned char END_MARKER = '$';
 
-const int MAX_WINDOW_SIZE = 255*100;
+const int MAX_WINDOW_SIZE = 1024*32;
 
-const int MAX_DICT_SIZE = 1024*128;
+const int MAX_DICT_SIZE = 1024*64;
 
 vector <uint8_t> encodeLZ77(const vector <unsigned char>& data) {
 
@@ -86,30 +86,29 @@ vector <unsigned char> decodeLZ77(const vector <uint8_t>& data) {
 
 vector<uint8_t> encodeLZSS(const vector<uint8_t>& data) {
 
-	const int MIN_LEN = 2;
+	const int MIN_LEN = 3;
+	const int MAX_LEN = 255;
 
 	int data_size = data.size();
 	vector <uint8_t> result;
 
 	for (int pos = 0; pos < data_size;) {
 
-		uint8_t best_offset = 0;
-		uint8_t best_length = 0;
-		unsigned char next_s;
+		int best_offset = 0;
+		int best_length = 0;
 
 		int search_start = max(0, pos - MAX_WINDOW_SIZE);
 		int max_length = min(MAX_WINDOW_SIZE, data_size - pos);
+		max_length = min(max_length, MAX_LEN);
 
 		for (int i = search_start; i < pos; i++) {
 
 			int length = 0;
 
-			while (length < max_length &&
-				pos + length < data_size &&
-				data[length + i] == data[pos + length])
-			{
+			while (length < max_length && pos + length < data_size && data[length + i] == data[pos + length]){
 				length++;
 			}
+
 			if (length > best_length) {
 				best_length = length;
 				best_offset = pos - i;
@@ -117,24 +116,16 @@ vector<uint8_t> encodeLZSS(const vector<uint8_t>& data) {
 		}
 
 		if (best_length >= MIN_LEN && best_offset > 0) {
-
+			if (best_offset == 0) {
+				best_offset = 1;
+			}
 			result.push_back(1); // Флаг если было повторение
 
-			// Это для маленького окна
-			
-			//result.push_back(best_offset);
-			//result.push_back(best_length);
+			uint16_t offset16 = static_cast<uint16_t>(best_offset); // Двай байта на offset для больших данных
+			result.push_back(offset16 & 0xFF);       
+			result.push_back((offset16 >> 8) & 0xFF); 
 
-			////////////////////
-			// 
-			// Это для большого окна
-
-			uint16_t offset16 = static_cast<uint16_t>(best_offset);
-			result.push_back(offset16 & 0xFF);        // младший байт
-			result.push_back((offset16 >> 8) & 0xFF); // старший байт
 			result.push_back(static_cast<uint8_t>(best_length));
-
-			//////////////
 
 			pos += best_length;
 		}
@@ -144,6 +135,7 @@ vector<uint8_t> encodeLZSS(const vector<uint8_t>& data) {
 			pos++;
 		}
 	}
+
 	return result;
 }
 
@@ -161,25 +153,17 @@ vector <unsigned char> decodeLZSS(const vector <uint8_t>& data) {
 		}
 		else {
 
-			///// ДЛЯ МАЛЕНЬКОГО РАЗМЕРА ОКНА
-
-			//if (pos + 1 >= data.size()) break;
-
-			//uint8_t offset = data[pos++];
-			//uint8_t length = data[pos++];
-
-			///////////////////////////////
-
-			///// ДЛЯ БОЛЬШОГО РАЗМЕРА ОКНА
-
 			if (pos + 2 >= data.size()) break;
+
 			uint16_t offset = data[pos] | (data[pos + 1] << 8);
 			pos += 2;
 
 			if (pos >= data.size()) break;
 			uint8_t length = data[pos++];
 
-			////////////////////////////////
+			if (offset == 0 || offset > result.size() || length == 0) {
+				continue;
+			}
 
 			size_t start = result.size() - offset;
 			for (size_t i = 0; i < length; i++) {
